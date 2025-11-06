@@ -9,7 +9,10 @@ def create_wine_ratings(
     alpha=0.35,
     base_std=0.60,
     scale_factor=0.01269,
+    random_seed=2025,
 ):
+    rng = np.random.default_rng(random_seed)
+
     # Load dataset
     raw = pd.read_csv(path_vivno, encoding="utf-16", sep=";")
     split = raw.iloc[:, 0].str.split(",", expand=True)
@@ -57,7 +60,7 @@ def create_wine_ratings(
 
     # Categorize alcohol(ABV) into low/medium/high groups
     def abv_level(a):
-        if pd.isna(a):
+        if pd.isna(a) or a < 5:
             return "medium"
         if a < 12:
             return "low"
@@ -132,29 +135,24 @@ def create_wine_ratings(
     users = pd.DataFrame(
         {
             "user_id": [f"user_{i+1}" for i in range(n_users)],
-            "persona_country": np.random.choice(
-                w["country_norm"].unique(), size=n_users
-            ),
-            "persona_color": np.random.choice(w["color_simple"].unique(), size=n_users),
-            "persona_price": np.random.choice(
+            "persona_country": rng.choice(w["country_norm"].unique(), size=n_users),
+            "persona_color": rng.choice(w["color_simple"].unique(), size=n_users),
+            "persona_price": rng.choice(
                 ["low", "medium", "high"], size=n_users, p=[0.3, 0.5, 0.2]
             ),
-            "persona_abv": np.random.choice(
+            "persona_abv": rng.choice(
                 ["low", "medium", "high"], size=n_users, p=[0.25, 0.5, 0.25]
             ),
         }
     )
 
     # Select which users will rate each wine
-    # k = Ratingsnum_scaled
-    # User assignment is probability-weighted by attribute similarity
     pairs = []
     for _, wine in w.iterrows():
         k = wine["Ratingsnum_scaled"]
         if k <= 0:
-            continue  # Skip wines with zero scaled reviewer count
+            continue
 
-        # Measure similarity between wine attributes and each user's persona
         sim = (
             (users["persona_country"] == wine["country_norm"]).astype(int)
             + (users["persona_color"] == wine["color_simple"]).astype(int)
@@ -162,10 +160,9 @@ def create_wine_ratings(
             + (users["persona_abv"] == wine["abv_level"]).astype(int)
         ) / 4.0
 
-        # Compute similarity between user persona and wine attributes
         weights = (sim + 0.01) / (sim + 0.01).sum()
-        # Randomly choose k users to rate the wine, weighted by similarity
-        chosen = np.random.choice(
+
+        chosen = rng.choice(
             users["user_id"], size=min(k, n_users), replace=False, p=weights
         )
 
@@ -192,12 +189,12 @@ def create_wine_ratings(
 
     # Generate base rating using original wine rating + noise
     base = np.clip(
-        np.round(df["Ratings"].fillna(3.0) + np.random.normal(0, base_std, len(df))),
+        np.round(df["Ratings"].fillna(3.0) + rng.normal(0, base_std, len(df))),
         1,
         5,
     ).astype(int)
 
-    # Soft-weighted preference score based on persona-wine attribute similarity
+    # Soft-weighted preference score
     df["rating"] = np.round(
         (1 - alpha) * base
         + alpha
@@ -235,7 +232,4 @@ def create_wine_ratings(
 
     # Save dataset to CSV
     df_out.to_csv(path_out, index=False)
-    print("Saved:", path_out)
-
-    # Execute function
-    create_wine_ratings()
+    print(f"Saved: {path_out} (with random_seed={random_seed})")
