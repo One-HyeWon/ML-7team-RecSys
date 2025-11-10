@@ -40,6 +40,9 @@ This repository contains the full pipeline for building a hybrid wine recommende
    - Hybrid Top-N recommender for user persona (test set)
    - Evaluation using RMSE/MAE (CF) and accuracy/confusion matrix/recall/F1 (CBF)
 
+<img width="578" height="633" alt="image" src="https://github.com/user-attachments/assets/29b12dfc-5923-4e2e-9ffe-868eea33b734" />
+
+
 ## 🚀 Running Code
 - See each script's top section for usage instructions.
 - Preprocessed CSV files are provided for direct use.
